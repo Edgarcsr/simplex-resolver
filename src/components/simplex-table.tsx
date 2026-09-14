@@ -12,6 +12,8 @@ interface SimplexTableProps {
   tableau: SimplexTableau
   values: number[][]
   onChange?: (row: number, col: number, value: string) => void
+  onCommit?: (row: number, col: number) => void
+  drafts?: Record<string, string>
   editable?: boolean
   highlight?: { row: number; col: number }[]
   pivotCell?: { row: number; col: number }
@@ -26,6 +28,8 @@ export function SimplexTable({
   tableau,
   values,
   onChange,
+  onCommit,
+  drafts = {},
   editable = false,
   highlight = [],
   pivotCell,
@@ -128,9 +132,13 @@ export function SimplexTable({
                   >
                     <input
                       type="text"
-                      inputMode="decimal"
-                      value={val === 0 ? '' : String(Number.isInteger(val) ? val : val.toFixed(2))}
+                      inputMode="text"
+                      value={
+                        drafts[`${i}-${j}`] ??
+                        (val === 0 ? '' : String(Number.isInteger(val) ? val : val.toFixed(2)))
+                      }
                       onChange={(e) => onChange?.(i, j, e.target.value)}
+                      onBlur={() => onCommit?.(i, j)}
                       disabled={!editable_}
                       placeholder="?"
                       className={`w-16 h-9 text-center text-sm font-mono rounded-md outline-none transition-all duration-150 disabled:cursor-default disabled:opacity-100 ${

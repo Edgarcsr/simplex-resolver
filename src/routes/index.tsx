@@ -7,6 +7,7 @@ import {
   solveStepByStep,
   type SimplexProblem,
   type SimplexStep,
+  type SimplexTableau,
 } from '#/lib/simplex.ts'
 import { SimplexTable } from '#/components/simplex-table.tsx'
 import { StepExplanation } from '#/components/step-explanation.tsx'
@@ -19,6 +20,7 @@ import {
   Play,
   Eraser,
   SquarePlus,
+  SquarePen,
   X,
   ChevronLeft,
   ChevronRight,
@@ -95,6 +97,7 @@ function Home() {
 
   const [values, setValues] = useState<number[][]>(() => blankTourCells(tableau.matrix))
   const [filledCells, setFilledCells] = useState<Set<string>>(new Set())
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [phase, setPhase] = useState<'idle' | 'filling' | 'ready' | 'solving'>('idle')
   const [steps, setSteps] = useState<SimplexStep[]>([])
   const [currentStep, setCurrentStep] = useState(0)
@@ -106,6 +109,7 @@ function Home() {
   useEffect(() => {
     setValues(blankTourCells(tableau.matrix))
     setFilledCells(new Set())
+    setDrafts({})
   }, [tableau])
 
   useEffect(() => {
@@ -208,6 +212,7 @@ function Home() {
   }, [problem])
 
   const handleManualFill = useCallback((row: number, col: number, raw: string) => {
+    setDrafts((prev) => ({ ...prev, [`${row}-${col}`]: raw }))
     const num = raw === '' ? 0 : parseFloat(raw)
     if (!isNaN(num)) {
       setValues((prev) => {
@@ -219,19 +224,39 @@ function Home() {
     }
   }, [])
 
+  const handleCommitCell = useCallback((row: number, col: number) => {
+    setDrafts((prev) => {
+      const next = { ...prev }
+      delete next[`${row}-${col}`]
+      return next
+    })
+  }, [])
+
   const handleSolve = useCallback(() => {
     if (filledCells.size === 0) {
       setShowFillWarning(true)
       return
     }
-    const result = solveStepByStep(problem, tableau)
+    const userTableau: SimplexTableau = {
+      matrix: values.map((r) => [...r]),
+      basis: tableau.basis,
+      headers: tableau.headers,
+    }
+    const result = solveStepByStep(problem, userTableau)
     setSteps(result)
     setCurrentStep(0)
     setPhase('solving')
     if (result.length > 0) {
       setHighlight(result[0].highlight ?? [])
     }
-  }, [problem, tableau, filledCells])
+  }, [problem, tableau, values, filledCells])
+
+  const handleEdit = useCallback(() => {
+    setSteps([])
+    setCurrentStep(0)
+    setHighlight([])
+    setPhase('filling')
+  }, [])
 
   const handleNextStep = useCallback(() => {
     if (currentStep < steps.length - 1) {
@@ -252,6 +277,7 @@ function Home() {
   const handleClear = useCallback(() => {
     setValues(blankTourCells(tableau.matrix))
     setFilledCells(new Set())
+    setDrafts({})
     setPhase('idle')
     setSteps([])
     setCurrentStep(0)
@@ -323,6 +349,8 @@ function Home() {
                   tableau={currentTableau}
                   values={phase === 'solving' ? currentTableau.matrix : values}
                   onChange={handleManualFill}
+                  onCommit={handleCommitCell}
+                  drafts={drafts}
                   editable={phase === 'idle' || phase === 'filling'}
                   highlight={highlight}
                   pivotCell={phase === 'solving' ? steps[currentStep]?.tableau.pivot : undefined}
@@ -438,6 +466,17 @@ function Home() {
               <span className="hidden sm:inline">Limpar</span>
               <Eraser />
             </Button>
+            {(phase === 'solving' || phase === 'ready') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Editar tabela"
+                onClick={handleEdit}
+              >
+                <span className="hidden sm:inline">Editar</span>
+                <SquarePen />
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
