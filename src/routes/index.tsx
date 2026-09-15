@@ -98,9 +98,10 @@ function Home() {
   const [values, setValues] = useState<number[][]>(() => blankTourCells(tableau.matrix))
   const [filledCells, setFilledCells] = useState<Set<string>>(new Set())
   const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [phase, setPhase] = useState<'idle' | 'filling' | 'ready' | 'solving'>('idle')
+  const [phase, setPhase] = useState<'idle' | 'filling' | 'editing' | 'ready' | 'solving'>('idle')
   const [steps, setSteps] = useState<SimplexStep[]>([])
   const [currentStep, setCurrentStep] = useState(0)
+  const [stepByStep, setStepByStep] = useState(true)
   const [highlight, setHighlight] = useState<{ row: number; col: number }[]>([])
   const [introTourActive, setIntroTourActive] = useState(false)
   const [fillTourActive, setFillTourActive] = useState(false)
@@ -244,18 +245,19 @@ function Home() {
     }
     const result = solveStepByStep(problem, userTableau)
     setSteps(result)
-    setCurrentStep(0)
     setPhase('solving')
     if (result.length > 0) {
-      setHighlight(result[0].highlight ?? [])
+      const target = stepByStep ? 0 : result.length - 1
+      setCurrentStep(target)
+      setHighlight(result[target].highlight ?? [])
     }
-  }, [problem, tableau, values, filledCells])
+  }, [problem, tableau, values, filledCells, stepByStep])
 
   const handleEdit = useCallback(() => {
     setSteps([])
     setCurrentStep(0)
     setHighlight([])
-    setPhase('filling')
+    setPhase('editing')
   }, [])
 
   const handleNextStep = useCallback(() => {
@@ -288,7 +290,9 @@ function Home() {
   const isOptimal = steps.length > 0 && currentStep === steps.length - 1
 
   const canEditStructure =
-    (phase === 'idle' || phase === 'filling') && !introTourActive && !fillTourActive
+    (phase === 'idle' || phase === 'filling' || phase === 'editing') &&
+    !introTourActive &&
+    !fillTourActive
 
   const canClear = !introTourActive && !fillTourActive && (phase !== 'idle' || filledCells.size > 0)
 
@@ -351,7 +355,7 @@ function Home() {
                   onChange={handleManualFill}
                   onCommit={handleCommitCell}
                   drafts={drafts}
-                  editable={phase === 'idle' || phase === 'filling'}
+                  editable={phase === 'idle' || phase === 'filling' || phase === 'editing'}
                   highlight={highlight}
                   pivotCell={phase === 'solving' ? steps[currentStep]?.tableau.pivot : undefined}
                   filledCells={filledCells}
@@ -479,7 +483,23 @@ function Home() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <label
+              className={cn(
+                'flex items-center gap-1.5 text-xs font-medium select-none cursor-pointer transition-colors',
+                phase === 'solving' ? 'text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={stepByStep}
+                onChange={(e) => setStepByStep(e.target.checked)}
+                disabled={phase === 'solving'}
+                className="size-3.5 accent-primary disabled:cursor-not-allowed"
+                aria-label="Modo passo a passo"
+              />
+              Passo a passo
+            </label>
             <div className="flex items-center" data-simplex-objective>
               <ObjectiveToggle
                 maximize={problem.maximize}
@@ -487,7 +507,7 @@ function Home() {
                 disabled={phase === 'solving'}
               />
             </div>
-            {phase === 'solving' ? (
+            {phase === 'solving' && stepByStep ? (
               <div className="flex items-center rounded-md border border-border" role="group" data-slot="button-group">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -521,12 +541,12 @@ function Home() {
                   <TooltipContent>{isOptimal ? 'Concluído' : 'Próximo passo'}</TooltipContent>
                 </Tooltip>
               </div>
-            ) : (
+            ) : phase !== 'solving' ? (
               <Button size="sm" aria-label="Resolver" onClick={handleSolve} data-simplex-solve>
                 <span className="hidden sm:inline">Resolver</span>
                 <Play />
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
 
