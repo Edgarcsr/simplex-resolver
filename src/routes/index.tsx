@@ -581,9 +581,15 @@ function Home() {
                 <span>Ver logs ({steps.length})</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="max-h-[80vh]">
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="mx-auto max-w-160 space-y-4 py-2">
+            <SheetContent side="bottom" className="h-[80vh] gap-0 p-0">
+              <SheetHeader className="shrink-0 border-b px-4 py-3 text-left md:px-6">
+                <SheetTitle>Logs da resolução</SheetTitle>
+                <SheetDescription>
+                  Passo a passo da resolução ({steps.length} passos).
+                </SheetDescription>
+              </SheetHeader>
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="mx-auto max-w-160 space-y-4 px-4 py-4 md:px-6">
                   {steps.map((step, index) => (
                     <div
                       key={index}
