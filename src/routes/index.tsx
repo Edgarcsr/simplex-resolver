@@ -1,6 +1,7 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { flushSync } from 'react-dom'
+import { toast } from 'sonner'
 import {
   getDefaultProblem,
   buildInitialTableau,
@@ -15,6 +16,9 @@ import { startIntroTour, startFillTour, destroyTour } from '#/components/tour.ts
 import { Button } from '#/components/ui/button.tsx'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card.tsx'
 import { Tooltip, TooltipTrigger, TooltipContent } from '#/components/ui/tooltip.tsx'
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '#/components/ui/sheet.tsx'
+import { ScrollArea } from '#/components/ui/scroll-area.tsx'
+import { Checkbox } from '#/components/ui/checkbox.tsx'
 import {
   GraduationCap,
   Play,
@@ -25,6 +29,7 @@ import {
   ChevronLeft,
   ChevronRight,
   TriangleAlert,
+  Logs,
 } from 'lucide-react'
 import { cn } from '#/lib/utils.ts'
 
@@ -106,6 +111,7 @@ function Home() {
   const [introTourActive, setIntroTourActive] = useState(false)
   const [fillTourActive, setFillTourActive] = useState(false)
   const [showFillWarning, setShowFillWarning] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
 
   useEffect(() => {
     setValues(blankTourCells(tableau.matrix))
@@ -118,6 +124,22 @@ function Home() {
     const timer = setTimeout(() => setShowFillWarning(false), 4000)
     return () => clearTimeout(timer)
   }, [showFillWarning])
+
+  const prevStepRef = useRef(-1)
+  useEffect(() => {
+    if (phase === 'solving' && steps[currentStep] && stepByStep && prevStepRef.current !== currentStep) {
+      prevStepRef.current = currentStep
+      toast(steps[currentStep].description, {
+        duration: Infinity,
+        closeButton: true,
+        description: (
+          <p className="text-center text-muted-foreground text-sm">
+            {steps[currentStep].description}
+          </p>
+        ),
+      })
+    }
+  }, [currentStep, phase, steps, stepByStep])
 
   const handleToggleMaximize = useCallback((maximize: boolean) => {
     setProblem((prev) => normalizeProblem({ ...prev, maximize }))
@@ -258,6 +280,7 @@ function Home() {
     setCurrentStep(0)
     setHighlight([])
     setPhase('editing')
+    setShowLogs(false)
   }, [])
 
   const handleNextStep = useCallback(() => {
@@ -484,22 +507,21 @@ function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <label
-              className={cn(
-                'flex items-center gap-1.5 text-xs font-medium select-none cursor-pointer transition-colors',
-                phase === 'solving' ? 'text-muted-foreground' : 'text-foreground',
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={stepByStep}
-                onChange={(e) => setStepByStep(e.target.checked)}
-                disabled={phase === 'solving'}
-                className="size-3.5 accent-primary disabled:cursor-not-allowed"
-                aria-label="Modo passo a passo"
-              />
-              Passo a passo
-            </label>
+<label
+               className={cn(
+                 'flex items-center gap-1.5 text-xs font-medium select-none cursor-pointer transition-colors',
+                 phase === 'solving' ? 'text-muted-foreground' : 'text-foreground',
+               )}
+             >
+               <Checkbox
+                 checked={stepByStep}
+                 onCheckedChange={(checked) => setStepByStep(checked === true)}
+                 disabled={phase === 'solving'}
+                 id="stepByStep"
+                 className="size-3.5 accent-primary disabled:cursor-not-allowed"
+               />
+               Passo a passo
+             </label>
             <div className="flex items-center" data-simplex-objective>
               <ObjectiveToggle
                 maximize={problem.maximize}
@@ -550,16 +572,35 @@ function Home() {
           </div>
         </div>
 
-        {/* Descrição do passo */}
-        {phase === 'solving' && steps[currentStep] && (
-          <Card className="w-full max-w-2xl" key={currentStep}>
-            <CardContent>
-              <StepExplanation
-                description={steps[currentStep].description}
-                explain={steps[currentStep].explain}
-              />
-            </CardContent>
-          </Card>
+        {/* Logs / Passo a passo */}
+        {phase === 'solving' && steps.length > 0 && (
+          <Sheet open={showLogs} onOpenChange={setShowLogs}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full max-w-2xl justify-center gap-2 text-muted-foreground">
+                <Logs className="size-4" />
+                <span>Ver logs ({steps.length})</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="max-h-[80vh]">
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="mx-auto max-w-160 space-y-4 py-2">
+                  {steps.map((step, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        'rounded-lg border p-3 text-sm transition-colors',
+                        index === currentStep
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-muted/30',
+                      )}
+                    >
+                      <StepExplanation description={step.description} explain={step.explain} />
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
         )}
       </div>
     </div>
