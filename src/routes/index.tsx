@@ -141,6 +141,10 @@ function Home() {
     }
   }, [currentStep, phase, steps, stepByStep])
 
+  const handleDismissToasts = useCallback(() => {
+    toast.dismiss()
+  }, [])
+
   const handleToggleMaximize = useCallback((maximize: boolean) => {
     setProblem((prev) => normalizeProblem({ ...prev, maximize }))
   }, [])
@@ -504,6 +508,15 @@ function Home() {
                 <SquarePen />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Limpar toasts"
+              onClick={handleDismissToasts}
+            >
+              <X className="size-3.5" />
+              <span className="hidden sm:inline">Limpar toasts</span>
+            </Button>
           </div>
 
           <div className="flex items-center gap-3">
