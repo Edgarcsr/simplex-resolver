@@ -113,11 +113,15 @@ function Home() {
   const [showFillWarning, setShowFillWarning] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
 
+  const structureRows = problem.constraints.length + 1
+  const structureCols = problem.varNames.length + problem.constraints.length + 1
+
   useEffect(() => {
-    setValues(blankTourCells(tableau.matrix))
+    setValues(Array.from({ length: structureRows }, () => new Array(structureCols).fill(0)))
     setFilledCells(new Set())
     setDrafts({})
-  }, [tableau])
+    setPhase((prev) => (prev === 'ready' || prev === 'solving' ? 'editing' : prev))
+  }, [structureRows, structureCols])
 
   useEffect(() => {
     if (!showFillWarning) return
@@ -317,9 +321,9 @@ function Home() {
   const isOptimal = steps.length > 0 && currentStep === steps.length - 1
 
   const canEditStructure =
-    (phase === 'idle' || phase === 'filling' || phase === 'editing') &&
-    !introTourActive &&
-    !fillTourActive
+    phase === 'idle' || phase === 'filling' || phase === 'editing' || phase === 'ready'
+
+  const tourActive = introTourActive || fillTourActive
 
   const canClear = !introTourActive && !fillTourActive && (phase !== 'idle' || filledCells.size > 0)
 
@@ -414,7 +418,7 @@ function Home() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Adicionar variável"
-                      disabled={problem.varNames.length >= 10}
+                      disabled={tourActive || problem.varNames.length >= 10}
                       onClick={handleAddVariable}
                     >
                       <SquarePlus />
@@ -428,7 +432,7 @@ function Home() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Remover variável"
-                      disabled={problem.varNames.length <= 2}
+                      disabled={tourActive || problem.varNames.length <= 2}
                       onClick={handleRemoveVariable}
                     >
                       <X />
@@ -445,7 +449,7 @@ function Home() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Adicionar restrição"
-                      disabled={problem.constraints.length >= 10}
+                      disabled={tourActive || problem.constraints.length >= 10}
                       onClick={handleAddConstraint}
                     >
                       <SquarePlus />
@@ -459,7 +463,7 @@ function Home() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Remover restrição"
-                      disabled={problem.constraints.length <= 1}
+                      disabled={tourActive || problem.constraints.length <= 1}
                       onClick={handleRemoveConstraint}
                     >
                       <X />
@@ -508,15 +512,6 @@ function Home() {
                 <SquarePen />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Limpar toasts"
-              onClick={handleDismissToasts}
-            >
-              <X className="size-3.5" />
-              <span className="hidden sm:inline">Limpar toasts</span>
-            </Button>
           </div>
 
           <div className="flex items-center gap-3">
@@ -588,12 +583,24 @@ function Home() {
         {/* Logs / Passo a passo */}
         {phase === 'solving' && steps.length > 0 && (
           <Sheet open={showLogs} onOpenChange={setShowLogs}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full max-w-2xl justify-center gap-2 text-muted-foreground">
-                <Logs className="size-4" />
-                <span>Ver logs ({steps.length})</span>
+            <div className="flex items-center gap-1 max-w-fit">
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="justify-center gap-2 text-muted-foreground">
+                  <Logs className="size-4" />
+                  <span>Ver logs ({steps.length})</span>
+                </Button>
+              </SheetTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-center gap-2 text-muted-foreground"
+                aria-label="Fechar notificações"
+                onClick={handleDismissToasts}
+              >
+                <X className="size-4" />
+                <span>Fechar notificações</span>
               </Button>
-            </SheetTrigger>
+            </div>
             <SheetContent side="bottom" className="h-[80vh] gap-0 p-0">
               <SheetHeader className="shrink-0 border-b px-4 py-3 text-left md:px-6">
                 <SheetTitle>Logs da resolução</SheetTitle>
